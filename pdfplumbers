@@ -1,0 +1,51 @@
+import re
+import os
+import parse
+import pdfplumber
+import pandas as pd
+from collections import namedtuple
+
+#basically this will be the columns in our excel 
+Line = namedtuple('Line', 'company_id company_name doctype reference currency voucher inv_date due_date open_amt_tc open_amt_bc current months1 months2 months3')
+
+
+###here are the searching and parsing parameters
+##the second lines searhes and parses by digits (\d{2}/\d{2/\{4}) 
+
+company_re = re.compile(r'(V\d+) (.*) Phone:')
+line_re = re.compile(r'\d{2}/\d{2}/\d{4} \d{2}/\d{2}/\d{4}')
+
+
+#setting the file as a variable
+file = "Downloads\Invoice20127596".pdf'
+
+
+lines = []
+total_check = 0
+
+# opens pdf, reads and extracts text
+#then reads each lines and if it starts with a keyword 
+
+with pdfplumber.open(file) as pdf:
+    pages = pdf.pages
+    for page in pdf.pages:
+        text = page.extract_text()
+        for line in text.split('\n'):
+            print(line)
+            comp = company_re.search(line)
+            if comp:
+                vend_no, vend_name = comp.group(1), comp.group(2)
+
+            elif line.startswith('RATE CONFIRMATION'):
+                doctype = 'rate confirmations'
+
+            elif line.startswith('INVOICES'):
+                doctype = 'invoices'
+
+            elif line_re.search(line):
+                items = line.split()
+                lines.append(Line(vend_no, vend_name, doctype, *items))
+                
+            elif line.startswith('Supplier total'):
+                tot = float(line.split()[2].replace(',', ''))
+                total_check += tot
